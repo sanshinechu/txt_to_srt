@@ -5,13 +5,13 @@
 ---
 
 ## A. GitHub Pages（推薦）
-1. 到 GitHub 建立一個新的公開 Repository（例如：`subtitle-tool`）。
+1. 到 GitHub 建立一個新的公開 Repository（例如：`txt_to_srt`）。
 2. 將 `index.html` 上傳到這個 repo 的根目錄（不要放子資料夾）。
 3. 在 repo 的 **Settings → Pages**：
    - Source 選擇 **Deploy from a branch**
    - Branch 選擇 **main**（或你的預設分支），/（root）
    - 按 Save。幾十秒後會出現一個公開網址，例如：
-     `https://你的帳號.github.io/subtitle-tool/`
+     `https://你的帳號.github.io/txt_to_srt/`
 4. 用這個網址就能在任何地方開啟工具；在 **Google Sites** 內可用「插入 → 嵌入 → 網址」放入。
 
 ---
