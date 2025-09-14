@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube 字幕轉換器 (TXT ➜ SRT)</title>
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .drag-over {
+      border-color: #3b82f6 !important;
+      background-color: #eff6ff !important;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <header class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-gray-800 mb-2">YouTube 字幕轉換器</h1>
+      <p class="text-gray-600">將純文字（每行一句）轉成 YouTube 可用的 SRT 字幕格式</p>
+    </header>
+
+    <!-- Upload & Settings -->
+    <section class="bg-white rounded-xl shadow-lg p-8 mb-6">
+      <div class="grid md:grid-cols-2 gap-8">
+        <!-- 上傳區域 -->
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">📁 上傳文字檔</h2>
+          <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer">
+            <div class="text-gray-500">
+              <svg class="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="text-lg mb-2">拖放文字檔到這裡</p>
+              <p class="text-sm">或點擊選擇檔案（.txt / UTF-8）</p>
+            </div>
+            <input id="fileInput" type="file" accept=".txt" class="hidden" />
+          </div>
+        </div>
+
+        <!-- 設定區域 -->
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">⚙️ 字幕設定</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">每行顯示秒數</label>
+              <input id="duration" type="number" min="1" max="10" value="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">字幕間隔秒數</label>
+              <input id="interval" type="number" min="0" max="5" step="0.1" value="0.5"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">每行最多字數（超過會自動分行）</label>
+              <input id="maxChars" type="number" min="10" max="100" value="30"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preview & Actions -->
+    <section id="previewSection" class="bg-white rounded-xl shadow-lg p-8 mb-6 hidden">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">👀 字幕預覽</h2>
+      <pre id="preview" class="whitespace-pre-wrap text-sm bg-gray-50 border border-gray-200 rounded-lg p-4 h-64 overflow-auto"></pre>
+
+      <div class="mt-4 flex gap-4">
+        <button id="downloadBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+          ⬇️ 下載 SRT 檔案
+        </button>
+        <button id="resetBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+          🔄 重新開始
+        </button>
+      </div>
+    </section>
+
+    <!-- 使用說明 -->
+    <section class="bg-white rounded-xl shadow-lg p-8">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">📖 使用說明</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-medium text-gray-800 mb-2">支援格式：</h3>
+          <ul class="text-gray-600 space-y-1 list-disc list-inside">
+            <li>純文字檔（.txt）</li>
+            <li>每行一個字幕句子</li>
+            <li>UTF-8 編碼</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-medium text-gray-800 mb-2">輸出格式：</h3>
+          <ul class="text-gray-600 space-y-1 list-disc list-inside">
+            <li>SRT 字幕檔</li>
+            <li>可直接上傳至 YouTube</li>
+            <li>自動時間軸產生</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- App Script -->
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewSection = document.getElementById('previewSection');
+    const preview = document.getElementById('preview');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const durationInput = document.getElementById('duration');
+    const intervalInput = document.getElementById('interval');
+    const maxCharsInput = document.getElementById('maxChars');
+
+    let currentSrtContent = '';
+    let currentFileName = '';
+
+    // 拖放 / 點擊 上傳
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) handleFile(files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    // 設定改變即時重產
+    [durationInput, intervalInput, maxCharsInput].forEach(input => {
+      input.addEventListener('input', () => {
+        if (currentSrtContent) generatePreview();
+      });
+    });
+
+    // 讀檔
+    function handleFile(file) {
+      if (!file.name.endsWith('.txt')) {
+        alert('請選擇 .txt 文字檔案');
+        return;
+      }
+      currentFileName = file.name.replace(/\.txt$/i, '');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        processText(text);
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    // 文本處理：每行一句；超過 maxChars 自動切分（英文字以空白切，中文以字元切）
+    function processText(text) {
+      const rawLines = text.split('\n').filter(line => line.trim() !== '');
+      const maxChars = parseInt(maxCharsInput.value, 10);
+
+      const processedLines = [];
+      rawLines.forEach(line => {
+        const trimmed = line.trim();
+
+        // 判斷是否包含空白（視為英文/有詞界）
+        const hasSpaces = /\s/.test(trimmed);
+        if (trimmed.length <= maxChars) {
+          processedLines.push(trimmed);
+        } else if (hasSpaces) {
+          // 以單字切分
+          const words = trimmed.split(/\s+/);
+          let current = '';
+          words.forEach((w, i) => {
+            const test = current.length === 0 ? w : current + ' ' + w;
+            if (test.length <= maxChars) {
+              current = test;
+            } else {
+              if (current) processedLines.push(current);
+              current = w;
+            }
+          });
+          if (current) processedLines.push(current);
+        } else {
+          // 無空白，多為中文或無空白語句：以字元切
+          let current = '';
+          for (const ch of trimmed) {
+            if ((current + ch).length <= maxChars) {
+              current += ch;
+            } else {
+              if (current) processedLines.push(current);
+              current = ch;
+            }
+          }
+          if (current) processedLines.push(current);
+        }
+      });
+
+      generateSrt(processedLines);
+      generatePreview();
+    }
+
+    // 產生 SRT 內容
+    function generateSrt(lines) {
+      const duration = parseFloat(durationInput.value);
+      const interval = parseFloat(intervalInput.value);
+      let srt = '';
+      let start = 0;
+
+      lines.forEach((line, idx) => {
+        const end = start + duration;
+        srt += (idx + 1) + '\n';
+        srt += formatTime(start) + ' --> ' + formatTime(end) + '\n';
+        srt += line + '\n\n';
+        start = end + interval;
+      });
+
+      currentSrtContent = srt;
+    }
+
+    // 秒數 ➜ SRT 時間格式
+    function formatTime(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 1000);
+      return String(hours).padStart(2, '0') + ':' +
+             String(minutes).padStart(2, '0') + ':' +
+             String(secs).padStart(2, '0') + ',' +
+             String(ms).padStart(3, '0');
+    }
+
+    // 更新預覽
+    function generatePreview() {
+      preview.textContent = currentSrtContent;
+      previewSection.classList.remove('hidden');
+    }
+
+    // 下載
+    downloadBtn.addEventListener('click', () => {
+      if (!currentSrtContent) {
+        alert('請先上傳文字檔');
+        return;
+      }
+      const blob = new Blob([currentSrtContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (currentFileName || 'subtitle') + '.srt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+      // 按鈕回饋
+      const original = downloadBtn.textContent;
+      downloadBtn.textContent = '✅ 下載完成！';
+      downloadBtn.classList.add('bg-green-600');
+      downloadBtn.classList.remove('bg-blue-600');
+      setTimeout(() => {
+        downloadBtn.textContent = original;
+        downloadBtn.classList.remove('bg-green-600');
+        downloadBtn.classList.add('bg-blue-600');
+      }, 1500);
+    });
+
+    // 重設
+    resetBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      currentSrtContent = '';
+      currentFileName = '';
+      previewSection.classList.add('hidden');
+      preview.textContent = '';
+    });
+  </script>
+</body>
+</html>
